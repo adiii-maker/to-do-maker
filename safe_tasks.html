@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TaskMaster Personal Engine</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22TaskMaster%22,%22short_name%22:%22Tasks%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23121212%22,%22theme_color%22:%22%234a90e2%22,%22icons%22:[{%22src%22:%22data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234a90e2'/><text x='50' y='65' font-family='sans-serif' font-size='50' fill='white' text-anchor='middle'>📋</text></svg>%22,%22sizes%22:%22512x512%22,%22type%22:%22image/svg+xml%22}]}">
+
+    <style>
+        :root {
+            --bg-color: #f4f7f6; --card-bg: #ffffff; --text-color: #333333;
+            --text-muted: #666666; --border-color: #e0e0e0; --primary-color: #4a90e2;
+            --accent-color: #2ecc71; --danger-color: #e74c3c; --shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        [data-theme="dark"] {
+            --bg-color: #121212; --card-bg: #1e1e1e; --text-color: #ffffff;
+            --text-muted: #a0a0a0; --border-color: #333333; --primary-color: #357abd;
+            --accent-color: #27ae60; --danger-color: #c0392b; --shadow: 0 4px 6px rgba(0,0,0,0.5);
+        }
+        
+        /* Strict Interface Isolation - Stops Copying, Selection, and AI Scraping */
+        * {
+            box-sizing: border-box; margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            user-select: none !important;
+        }
+        
+        body { background-color: var(--bg-color); color: var(--text-color); padding: 10px; padding-bottom: 40px; }
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 15px; }
+        @media (min-width: 900px) { .container { grid-template-columns: 1fr 350px; } body { padding: 20px; } }
+        
+        header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); }
+        header h1 { font-size: 1.2rem; }
+        
+        /* Allow individual input components to receive touch focus data only */
+        button, select, input { font-size: 16px; -webkit-user-select: auto !important; user-select: auto !important; }
+        input[type="text"] { -webkit-user-select: text !important; user-select: text !important; }
+        
+        button { cursor: pointer; padding: 10px 15px; border: none; border-radius: 8px; background: var(--primary-color); color: white; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; }
+        button:active { opacity: 0.8; }
+        .card { background: var(--card-bg); padding: 15px; border-radius: 12px; box-shadow: var(--shadow); }
+        h2, h3 { margin-bottom: 10px; font-size: 1.1rem; }
+        .task-form { display: flex; flex-direction: column; gap: 12px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        input, select { padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); color: var(--text-color); width: 100%; outline: none; }
+        input:focus, select:focus { border-color: var(--primary-color); }
+        
+        .progress-bar-outer { background: var(--border-color); border-radius: 10px; height: 15px; overflow: hidden; margin-top: 8px; }
+        .progress-bar-inner { background: var(--accent-color); height: 100%; width: 0%; transition: width 0.3s ease; }
+        .search-filter-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .task-list { min-height: 50px; margin-bottom: 15px; }
+        .task-item { display: flex; flex-direction: column; padding: 15px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 10px; }
+        
+        .task-main-content { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .task-details { display: flex; flex-direction: column; gap: 4px; padding-right: 10px; }
+        .task-title { font-weight: 600; font-size: 1.05rem; }
+        .task-meta { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+        
+        .priority-High { border-left: 5px solid var(--danger-color); }
+        .priority-Medium { border-left: 5px solid orange; }
+        .priority-Low { border-left: 5px solid var(--accent-color); }
+        .completed .task-title { text-decoration: line-through; opacity: 0.5; }
+        
+        .action-btns { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 10px; }
+        .action-btns button { padding: 8px 14px; font-size: 0.85rem; }
+        .delete-btn { background: var(--danger-color); }
+        .edit-btn { background: orange; }
+        .complete-btn { background: var(--accent-color); }
+        
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center; }
+        .stat-box { padding: 12px; background: var(--bg-color); border-radius: 8px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-top: 10px; }
+        .calendar-day-head { font-weight: bold; font-size: 0.75rem; color: var(--text-muted); }
+        .calendar-day { padding: 6px 0; background: var(--bg-color); border-radius: 6px; font-size: 0.8rem; position: relative; }
+        .calendar-day.has-task::after { content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: var(--primary-color); border-radius: 50%; }
+        .calendar-day.today { border: 1.5px solid var(--primary-color); font-weight: bold; }
+        
+        #appInstallBanner {
+            display: none; background: var(--primary-color); color: white;
+            padding: 12px; border-radius: 8px; margin-bottom: 15px;
+            justify-content: space-between; align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="appInstallBanner">
+        <span>Run as Standalone Mobile Application?</span>
+        <button id="installAppBtn" style="background: white; color: var(--primary-color); padding: 5px 10px;">Load App</button>
+    </div>
+
+    <header>
+        <h1>📋 Private Dashboard</h1>
+        <button id="themeToggle">🌓 Mode</button>
+    </header>
+    
+    <main>
+        <div class="card">
+            <h2 id="formTitle">Add New Task</h2>
+            <form id="taskForm" class="task-form">
+                <input type="hidden" id="taskId">
+                <input type="text" id="taskTitleInput" placeholder="What needs to be done?" required autocomplete="off">
+                <div class="form-row">
+                    <select id="taskCategoryInput">
+                        <option value="Work">Work</option>
+                        <option value="Personal">Personal</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Health">Health</option>
+                    </select>
+                    <select id="taskPriorityInput">
+                        <option value="Low">Low Priority</option>
+                        <option value="Medium">Medium Priority</option>
+                        <option value="High">High Priority</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <input type="datetime-local" id="taskDueInput" required>
+                    <select id="reminderTimeInput">
+                        <option value="1hour">Remind 1 hour before</option>
+                        <option value="1day">Remind 1 day before</option>
+                        <option value="none">No Reminder</option>
+                    </select>
+                </div>
+                <button type="submit" id="saveTaskBtn">Add Task</button>
+            </form>
+        </div>
+        
+        <div class="card" style="margin: 15px 0;">
+            <h2>Overall Progress</h2>
+            <div class="progress-bar-outer"><div id="progressBar" class="progress-bar-inner"></div></div>
+        </div>
+        
+        <div class="card">
+            <div class="search-filter-bar">
+                <input type="text" id="searchInput" placeholder="🔍 Search..." autocomplete="off">
+                <select id="filterCategory">
+                    <option value="All">All Items</option>
+                    <option value="Work">Work</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Shopping">Shopping</option>
+                    <option value="Health">Health</option>
+                </select>
+            </div>
+            <h3>Active Tasks</h3>
+            <div id="activeTaskList" class="task-list"></div>
+            <h3 style="margin-top: 15px;">Completed Tasks</h3>
+            <div id="completedTaskList" class="task-list"></div>
+        </div>
+    </main>
+    
+    <aside>
+        <div class="card" style="margin-bottom: 15px;">
+            <h2>Analytics</h2>
+            <div class="stats-grid">
+                <div class="stat-box"><h3 id="statTotal">0</h3><p>Total</p></div>
+                <div class="stat-box"><h3 id="statDone" style="color: var(--accent-color);">0</h3><p>Done</p></div>
+            </div>
+        </div>
+        <div class="card">
+            <h2 id="calendarMonthYear">Calendar</h2>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+    </aside>
+</div>
+
+<script>
+    // --- APP SECURITY LAYER: Freeze all standard clipboard/inspection commands ---
+    document.addEventListener('contextmenu', e => e.preventDefault()); // Disables right-clicks and deep mobile haptic select menus
+    document.addEventListener('selectstart', e => e.preventDefault()); // Stops code scraping
+    document.addEventListener('keydown', e => {
+        // Blocks Ctrl+C (Copy), Ctrl+U (Source), Ctrl+S (Save), Ctrl+A (Select All)
+        if (e.ctrlKey && (e.keyCode === 67 || e.keyCode === 85 || e.keyCode === 83 || e.keyCode === 65 || e.keyCode === 88)) {
+            e.preventDefault(); 
+            return false;
+        }
+        if (e.keyCode === 123) { e.preventDefault(); return false; } // Blocks F12 Inspect tools
+    });
+
+    // --- APPLICATION INSTALLATION MATRIX ---
+    let appPrompt;
+    const appInstallBanner = document.getElementById('appInstallBanner');
+    const installAppBtn = document.getElementById('installAppBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault(); appPrompt = e;
+        appInstallBanner.style.display = 'flex';
+    });
+    installAppBtn.addEventListener('click', async () => {
+        if (appPrompt) {
+            appPrompt.prompt();
+            const { outcome } = await appPrompt.userChoice;
+            if (outcome === 'accepted') appInstallBanner.style.display = 'none';
+            appPrompt = null;
+        }
+    });
+
+    // --- LOCAL APPLICATION LOGIC CORE ---
+    let tasks = JSON.parse(localStorage.getItem('_sec_t')) || [];
+    let isDarkMode = localStorage.getItem('_sec_th') === 'dark';
+    let editModeId = null;
+    let triggeredReminders = JSON.parse(localStorage.getItem('_sec_r')) || [];
+
+    const taskForm = document.getElementById('taskForm');
+    const taskTitleInput = document.getElementById('taskTitleInput');
+    const taskCategoryInput = document.getElementById('taskCategoryInput');
+    const taskPriorityInput = document.getElementById('taskPriorityInput');
+    const taskDueInput = document.getElementById('taskDueInput');
+    const reminderTimeInput = document.getElementById('reminderTimeInput');
+    const saveTaskBtn = document.getElementById('saveTaskBtn');
+    const formTitle = document.getElementById('formTitle');
+    const activeTaskList = document.getElementById('activeTaskList');
+    const completedTaskList = document.getElementById('completedTaskList');
+    const progressBar = document.getElementById('progressBar');
+    const searchInput = document.getElementById('searchInput');
+    const filterCategory = document.getElementById('filterCategory');
+    const themeToggle = document.getElementById('themeToggle');
+    const statTotal = document.getElementById('statTotal');
+    const statDone = document.getElementById('statDone');
+    const calendarGrid = document.getElementById('calendarGrid');
+    const calendarMonthYear = document.getElementById('calendarMonthYear');
+
+    function playReminderSound() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const chime = (d, f, s) => {
+                const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+                o.type = 'sine'; o.frequency.setValueAtTime(f, audioCtx.currentTime + d);
+                g.gain.setValueAtTime(0.3, audioCtx.currentTime + d);
+                g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d + s);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(audioCtx.currentTime + d); o.stop(audioCtx.currentTime + d + s);
+            };
+            chime(0, 523.25, 0.15); chime(0.15, 659.25, 0.35);
+        } catch(e){}
+    }
+
+    if (isDarkMode) document.body.setAttribute('data-theme', 'dark');
+    themeToggle.addEventListener('click', () => {
+        isDarkMode = !isDarkMode;
+        document.body.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+        localStorage.setItem('_sec_th', isDarkMode ? 'dark' : 'light');
+    });
+
+    function sync() {
+        localStorage.setItem('_sec_t', JSON.stringify(tasks));
+        localStorage.setItem('_sec_r', JSON.stringify(triggeredReminders));
+        render();
+    }
+
+    taskForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = {
+            id: editModeId || Date.now().toString(),
+            title: taskTitleInput.value,
+            category: taskCategoryInput.value,
+            priority: taskPriorityInput.value,
+            dueDateTime: taskDueInput.value,
+            reminderType: reminderTimeInput.value,
+            completed: editModeId ? tasks.find(t => t.id === editModeId).completed : false
+        };
+        if (editModeId) {
+            tasks = tasks.map(t => t.id === editModeId ? data : t);
+            triggeredReminders = triggeredReminders.filter(id => id !== editModeId);
+            editModeId = null; saveTaskBtn.innerText = "Add Task"; formTitle.innerText = "Add New Task";
+        } else { tasks.push(data); }
+        taskForm.reset(); setDefaultDate(); sync();
+    });
+
+    function setDefaultDate() {
+        const n = new Date(); n.setMinutes(n.getMinutes() - n.getTimezoneOffset());
+        taskDueInput.value = n.toISOString().slice(0, 16);
+    }
+
+    window.toggleComplete = function(id) {
+        tasks = tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+        sync();
+    };
+    window.startEdit = function(id) {
+        const t = tasks.find(x => x.id === id); if (!t) return;
+        editModeId = t.id; taskTitleInput.value = t.title; taskCategoryInput.value = t.category;
+        taskPriorityInput.value = t.priority; taskDueInput.value = t.dueDateTime;
+        reminderTimeInput.value = t.reminderType; saveTaskBtn.innerText = "Update Task"; formTitle.innerText = "Edit Task";
+    };
+    window.deleteTask = function(id) {
+        tasks = tasks.filter(t => t.id !== id); triggeredReminders = triggeredReminders.filter(x => x !== id);
+        sync();
+    };
+
+    function render() {
+        activeTaskList.innerHTML = ''; completedTaskList.innerHTML = '';
+        const q = searchInput.value.toLowerCase(); const f = filterCategory.value;
+        let doneCount = 0;
+
+        tasks.forEach(t => {
+            if (!t.title.toLowerCase().includes(q)) return;
+            if (f !== 'All' && t.category !== f) return;
+            if (t.completed) doneCount++;
+
+            const el = document.createElement('div');
+            el.className = `task-item priority-${t.priority} ${t.completed ? 'completed' : ''}`;
+            const dt = new Date(t.dueDateTime).toLocaleString([], {dateStyle:'short', timeStyle:'short'});
+            
+            el.innerHTML = `
+                <div class="task-main-content">
+                    <div class="task-details">
+                        <span class="task-title">${t.title}</span>
+                        <span class="task-meta">📁 ${t.category} | ⏰ ${dt}</span>
+                    </div>
+                </div>
+                <div class="action-btns">
+                    <button class="complete-btn" onclick="toggleComplete('${t.id}')">${t.completed ? '↩️' : '✅'}</button>
+                    <button class="edit-btn" onclick="startEdit('${t.id}')">✏️</button>
+                    <button class="delete-btn" onclick="deleteTask('${t.id}')">🗑️</button>
+                </div>
+            `;
+            if(t.completed) completedTaskList.appendChild(el); else activeTaskList.appendChild(el);
+        });
+
+        statTotal.innerText = tasks.length;
+        statDone.innerText = doneCount;
+        progressBar.style.width = `${tasks.length === 0 ? 0 : Math.round((doneCount/tasks.length)*100)}%`;
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        calendarGrid.innerHTML = ''; const now = new Date();
+        calendarMonthYear.innerText = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+        ['S','M','T','W','T','F','S'].forEach(d => {
+            const h = document.createElement('div'); h.className = 'calendar-day-head'; h.innerText = d; calendarGrid.appendChild(h);
+        });
+        const y = now.getFullYear(), m = now.getMonth();
+        const start = new Date(y, m, 1).getDay(); const total = new Date(y, m + 1, 0).getDate();
+        for(let i=0; i<start; i++) calendarGrid.appendChild(document.createElement('div'));
+        for(let d=1; d<=total; d++) {
+            const dayEl = document.createElement('div'); dayEl.className = 'calendar-day'; dayEl.innerText = d;
+            const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            if (tasks.some(t => t.dueDateTime.startsWith(ds) && !t.completed)) dayEl.classList.add('has-task');
+            if (d === now.getDate()) dayEl.classList.add('today');
+            calendarGrid.appendChild(dayEl);
+        }
+    }
+
+    // Isolated internal timing loop (Runs locally every 5 seconds)
+    setInterval(() => {
+        const now = Date.now();
+        tasks.forEach(t => {
+            if (t.completed || t.reminderType === 'none' || triggeredReminders.includes(t.id)) return;
+            const time = new Date(t.dueDateTime).getTime();
+            const limit = t.reminderType === '1hour' ? 3600000 : 86400000;
+            if (now >= (time - limit) && now < time) {
+                triggeredReminders.push(t.id); playReminderSound(); sync();
+                alert(`🔔 Alert: "${t.title}" is due soon!`);
+            }
+        });
+    }, 5000);
+
+    searchInput.addEventListener('input', render);
+    filterCategory.addEventListener('change', render);
+    setDefaultDate(); render();
+
+    // Self-registering mock secure layer data stream
+    if ('serviceWorker' in navigator) {
+        const scriptData = 'data:application/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdmeXRjaCcsIGU9PmVvcmVzcG9uZFdpdGgoZmV0Y2goZS5yZXF1ZXN0KSkpOw==';
+        navigator.serviceWorker.register(scriptData);
+    }
+</script>
+</body>
+</html>
